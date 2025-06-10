@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Agente IA - Suporte N3</title>
+  <style>
+    body {
+      background-color: #121212;
+      color: #ffffff;
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+    h1 {
+      text-align: center;
+      margin: 20px 0 5px;
+      font-size: 26px;
+    }
+    p.subtitle {
+      text-align: center;
+      margin: 0 0 20px;
+      font-size: 14px;
+      color: #bbbbbb;
+    }
+    .chat-container {
+      max-width: 80%;
+      margin: 0 auto 30px;
+      background-color: #1e1e1e;
+      border-radius: 10px;
+      padding: 20px;
+      height: 80vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      margin-bottom: 10px;
+    }
+    .message {
+      max-width: 80%;
+      margin: 10px 0;
+      padding: 10px 14px;
+      border-radius: 12px;
+      line-height: 1.4;
+      white-space: pre-wrap;
+    }
+    .user {
+      background-color: #2196f3;
+      align-self: flex-end;
+    }
+    .bot {
+      background-color: #333;
+      align-self: flex-start;
+    }
+    .input-area {
+      display: flex;
+      gap: 10px;
+    }
+    input[type="text"] {
+      flex: 1;
+      padding: 10px;
+      font-size: 16px;
+      border-radius: 8px;
+      border: none;
+    }
+    button {
+      padding: 10px 16px;
+      font-size: 16px;
+      border-radius: 8px;
+      background-color: #4caf50;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    .loading {
+      font-style: italic;
+      color: #aaaaaa;
+      margin-top: 4px;
+      font-size: 18px; /* Aumenta o tamanho da fonte */
+      text-align: center; /* Centraliza o texto */
+      font-weight: bold; /* Destaca o texto com fonte em negrito */
+    }
+    a {
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>Suporte N3</h1>
+  <p class="subtitle">Desenvolvido pelo Time N3</p>
+  <div class="chat-container">
+    <div class="messages" id="chat"></div>
+    <div class="input-area">
+      <input type="text" id="pergunta" placeholder="Digite sua pergunta..." onkeypress="if(event.key==='Enter') enviarPergunta()">
+      <button onclick="enviarPergunta()">Enviar</button>
+    </div>
+    <div id="loading" class="loading" style="display: none;">Buscando na base de conhecimento...</div>
+  </div>
+  <script>
+    if (!localStorage.sessionId) {
+      localStorage.sessionId = crypto.randomUUID();
+    }
+    const sessionId = localStorage.sessionId;
+
+    window.onload = function () {
+      const chat = document.getElementById("chat");
+      const msg = document.createElement("div");
+      msg.className = "message bot";
+      msg.innerText = "Olá, como posso te ajudar?";
+      chat.appendChild(msg);
+      chat.scrollTop = chat.scrollHeight; // Adiciona rolagem aqui também
+    };
+
+    async function enviarPergunta() {
+      const perguntaInput = document.getElementById("pergunta");
+      const chat = document.getElementById("chat");
+      const loading = document.getElementById("loading");
+      const pergunta = perguntaInput.value.trim();
+      if (!pergunta) return;
+      
+      // Adiciona a mensagem do usuário
+      const perguntaElem = document.createElement("div");
+      perguntaElem.className = "message user";
+      perguntaElem.innerText = pergunta;
+      chat.appendChild(perguntaElem);
+      
+      // Limpa o campo de entrada
+      perguntaInput.value = "";
+      loading.style.display = "block";
+      
+      // Rola para baixo após adicionar a pergunta do usuário
+      chat.scrollTop = chat.scrollHeight;
+
+      try {
+        const response = await fetch("https://bemol.app.n8n.cloud/webhook/ask-agent", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pergunta, sessionId })
+        });
+        const data = await response.json();
+        const resposta = data.output || "Nenhuma resposta recebida.";
+        
+        // Adiciona a resposta do bot
+        const respostaElem = document.createElement("div");
+        respostaElem.className = "message bot";
+        respostaElem.innerHTML = formatarResposta(resposta);
+        chat.appendChild(respostaElem);
+        
+        // Rola para baixo após adicionar a resposta do bot
+        chat.scrollTop = chat.scrollHeight;
+
+      } catch (error) {
+        const errorElem = document.createElement("div");
+        errorElem.className = "message bot";
+        errorElem.innerText = "Erro ao enviar pergunta: " + error.message;
+        chat.appendChild(errorElem);
+        
+        // Rola para baixo após adicionar a mensagem de erro
+        chat.scrollTop = chat.scrollHeight;
+
+      } finally {
+        loading.style.display = "none";
+      }
+    }
+
+    function formatarResposta(texto) {
+      return texto.replace(/\n• (.+?\.pdf)/g, (match, nomeArquivo) => {
+        const nomeLimpo = nomeArquivo.trim();
+        const url = `https://thaispdfn3agente.blob.core.windows.net/pdfs/${encodeURIComponent(nomeLimpo)}`;
+        return `<br>• <a href="${url}" target="_blank" style="color:#4caf50;">${nomeLimpo}</a>`;
+      });
+    }
+  </script>
+</body>
+</html>
